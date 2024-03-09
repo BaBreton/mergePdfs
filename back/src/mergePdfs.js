@@ -1,6 +1,19 @@
 const fs = require('fs');
+const os = require('os');
 const { PDFDocument } = require('pdf-lib');
 const { convertToPdf } = require('./converters');
+const path = require('path');
+
+
+function saveBase64AsFile(base64, fileName) {
+	const tempDir = os.tmpdir();
+	const filePath = path.join(tempDir, fileName);
+	const buffer = Buffer.from(base64, 'base64');
+
+	fs.writeFileSync(filePath, buffer);
+
+	return filePath;
+}
 
 
 async function mergePdfs(paths) { // take array of files, convert to pdf and merge
@@ -15,22 +28,31 @@ async function mergePdfs(paths) { // take array of files, convert to pdf and mer
 	}
 
 	const mergedPdfFile = await mergedPdf.save();
-	return mergedPdfFile;
+	const base64pdf = Buffer.from(mergedPdfFile).toString('base64');
+	return base64pdf;
 }
 
-async function runMerge() {
-	const pdfs = [
-		'./one.pdf',
-		'./two.pdf',
-		'./three.jpg',
-		'./four.png',
-		'./five.txt',
-		'./six.docx',
-	];
-	const mergedPdf = await mergePdfs(pdfs);
 
-	const output = './merged.pdf';
-	fs.writeFileSync(output, mergedPdf);
-}
+exports.handler = async (event) => {
+	try {
+		const filesInfo = JSON.parse(event.body).files;
+		const tempPaths = filesInfo.map(fileInfo => saveBase64AsFile(fileInfo.content, fileInfo.name));
+		const base64Pdf = await mergePdfs(tempPaths)
 
-runMerge().catch(err => console.log(err));
+		tempPaths.forEach(fs.unlinkSync);
+
+		return {
+			statusCode: 200,
+			body: base64Pdf,
+			headers : {
+				'Content-Type': 'text/plain',
+			},
+		};
+	} catch (error) {
+		return {
+			statusCode: 500,
+			body: JSON.stringify({ error: error.message }),
+			headers : { 'Content-Type': 'application/json' },
+		};
+	}
+};

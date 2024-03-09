@@ -2,7 +2,8 @@ const fs = require('fs');
 const { PDFDocument, rgb } = require('pdf-lib');
 const path = require('path');
 const mammoth = require("mammoth");
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 
 async function convertImage(inputPath, ext) {
@@ -69,7 +70,13 @@ async function convertDocx(inputPath) {
 	try {
 		const result = await mammoth.convertToHtml({ path: inputPath });
 		const html = result.value;
-		const browser = await puppeteer.launch();
+
+		const browser = await puppeteer.launch({
+			args: chromium.args,
+			defaultViewport: chromium.defaultViewport,
+			executablePath: await chromium.executablePath(),
+			headless: chromium.headless,
+		  });
 		const page = await browser.newPage();
 		await page.setContent(html, { waitUntil: 'networkidle0' }); // check if all network connections are done
 		const pdfBuffer = await page.pdf(); // get buffer with pdf

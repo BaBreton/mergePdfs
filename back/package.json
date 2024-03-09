@@ -18,9 +18,10 @@
   "homepage": "https://github.com/BaBreton/mergePdfs#readme",
   "description": "",
   "dependencies": {
+    "@sparticuz/chromium": "^122.0.0",
     "express": "^4.18.3",
     "mammoth": "^1.7.0",
     "pdf-lib": "^1.17.1",
-    "puppeteer": "^22.4.1"
+    "puppeteer-core": "^22.4.1"
   }
 }
