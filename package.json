@@ -18,6 +18,7 @@
   "homepage": "https://github.com/BaBreton/mergePdfs#readme",
   "description": "",
   "dependencies": {
+    "express": "^4.18.3",
     "pdf-lib": "^1.17.1"
   }
 }
