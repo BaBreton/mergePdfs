@@ -25,6 +25,7 @@ async function runMerge() {
 		// './three.jpg',
 		'./four.png',
 		// './five.txt',
+		'./six.docx',
 	];
 	const mergedPdf = await mergePdfs(pdfs);
 

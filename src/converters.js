@@ -1,6 +1,9 @@
 const fs = require('fs');
 const { PDFDocument, rgb } = require('pdf-lib');
 const path = require('path');
+const mammoth = require("mammoth");
+const puppeteer = require('puppeteer');
+
 
 async function convertImage(inputPath, ext) {
 	const imgBytes = fs.readFileSync(inputPath);
@@ -62,6 +65,28 @@ async function convertTxt(inputPath) { // convert txt to pdf, not best way, but 
 }
 
 
+async function convertDocx(inputPath) {
+	try {
+		const result = await mammoth.convertToHtml({ path: inputPath });
+		const html = result.value;
+		const browser = await puppeteer.launch();
+		const page = await browser.newPage();
+		await page.setContent(html, { waitUntil: 'networkidle0' }); // check if all network connections are done
+		const pdfBuffer = await page.pdf(); // get buffer with pdf
+
+		await browser.close();
+
+		const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+		return pdfDoc;
+	} catch (err) {
+		console.error('Error during docx conversion:', err);
+		throw err;
+	}
+}
+
+
+
 async function convertToPdf(inputPath) { // take one files, check type and convert to pdf
 	const ext = path.extname(inputPath).toLowerCase();
 	let pdfDoc;
@@ -73,6 +98,8 @@ async function convertToPdf(inputPath) { // take one files, check type and conve
 		pdfDoc = await convertImage(inputPath, ext);
 	} else if (ext === '.txt') {
 		pdfDoc = await convertTxt(inputPath);
+	} else if (ext === '.docx') {
+		pdfDoc = await convertDocx(inputPath);
 	} else {
 		throw new Error('Unsupported file type');
 	}
