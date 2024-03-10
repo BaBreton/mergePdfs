@@ -34,14 +34,14 @@ export default function Merge() {
 	} = useUtils();
 
 
-	const handleMergeFiles = async () => {
+	const handleMergeFiles = async () => { // Main function that calls the AWS Lambda function to merge the files and download the merged file
 		setProcessing(true);
 		try {
-			const requestBody = await getRequestBody(files);
-			checkRequestSize(requestBody);
+			const requestBody = await getRequestBody(files); // Get the request body to send to the AWS Lambda function
+			checkRequestSize(requestBody); // Check if the request size is less than 10MB
 
-			const mergedBase64 = await getMergedBase64(requestBody);
-			automaticDownload(mergedBase64);
+			const mergedBase64 = await getMergedBase64(requestBody); // Call the AWS Lambda function to merge the files and get the merged file in base64 format
+			automaticDownload(mergedBase64); // Download the merged file
 			
 			setFiles([]);
 			setProcessing(false);

@@ -37,7 +37,7 @@ export const useUtils = () => {
 	}
 
 
-	function convertToBase64(file) {
+	function convertToBase64(file) { // Convert all files to base64 to send them to the AWS Lambda function
 		return new Promise((resolve, reject) => {
 			const reader = new FileReader();
 			reader.readAsDataURL(file);
@@ -47,7 +47,7 @@ export const useUtils = () => {
 	}
 
 
-	function base64ToBlob(base64, mimeType) {
+	function base64ToBlob(base64, mimeType) { // Convert the base64 to a blob to download the merged file
 		const byteCharacters = atob(base64);
 		const byteNumbers = new Array(byteCharacters.length);
 		for (let i = 0; i < byteCharacters.length; i++) {
@@ -58,7 +58,7 @@ export const useUtils = () => {
 	}
 
 
-	async function getRequestBody(files) {
+	async function getRequestBody(files) { // Convert the files to base64 and return the request body. The lambda take a the file name with extension to identify the files and how to merge them.
 		try {
 			const base64Files = await Promise.all(
 				Array.from(files).map(async (file) => {
@@ -94,7 +94,7 @@ export const useUtils = () => {
 			const error = await response.text();
 			const errorObject = JSON.parse(error);
 			let errorMessage = errorObject.error;
-			if (errorMessage.includes('/tmp/')) {
+			if (errorMessage.includes('/tmp/')) { // Remove the /tmp/ prefix from the error message, cause i stock the files in /tmp/ folder in the lambda
 				errorMessage = errorMessage.replace('/tmp/', '');
 			}
 			throw new Error(errorMessage);
@@ -106,14 +106,14 @@ export const useUtils = () => {
 	async function getMergedBase64(requestBody) {
 		return new Promise(async (resolve, reject) => {
 			try {
-				const response = await fetch('AWS_LAMBDA_URL', {
+				const response = await fetch('AWS_LAMBDA_URL', { // Call the AWS Lambda function to merge the files. Can be replaced by an AWS API Gateway URL, but works fine with the lambda URL
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: requestBody
 				});
-				await handleErrors(response);
+				await handleErrors(response); // Handle the errors from the AWS Lambda function
 				const mergedBase64 = await response.text();
 				resolve(mergedBase64);
 			} catch (error) {
