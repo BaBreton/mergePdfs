@@ -7,62 +7,74 @@ const chromium = require('@sparticuz/chromium');
 
 
 async function convertImage(inputPath, ext) {
-	const imgBytes = fs.readFileSync(inputPath);
-	const pdfDoc = await PDFDocument.create();
-	const img = await pdfDoc[ext === '.png' ? 'embedPng' : 'embedJpg'](imgBytes);
-	const page = pdfDoc.addPage([img.width, img.height]);
-	page.drawImage(img, {
-		x: 0,
-		y: 0,
-		width: img.width,
-		height: img.height,
-	});
-	
-	return pdfDoc;
+	try {
+		const imgBytes = fs.readFileSync(inputPath);
+		const pdfDoc = await PDFDocument.create();
+		const img = await pdfDoc[ext === '.png' ? 'embedPng' : 'embedJpg'](imgBytes);
+		const page = pdfDoc.addPage([img.width, img.height]);
+		page.drawImage(img, {
+			x: 0,
+			y: 0,
+			width: img.width,
+			height: img.height,
+		});
+		
+		return pdfDoc;
+	} catch (err) {
+		console.error('Error during image conversion: ', err);
+		err.message = 'Error during image conversion: ' + err.message;
+		throw err;
+	}
 }
 
 
 async function convertTxt(inputPath) { // convert txt to pdf, not best way, but works
-	const pdfDoc = await PDFDocument.create();
-	const txt = fs.readFileSync(inputPath, 'utf-8');
-	const fontSize = 12;
-	const margin = 50;
-	const lines = txt.split('\n');
-	let currentPage = null;
-	let y = 0;
+	try {
+		const pdfDoc = await PDFDocument.create();
+		const txt = fs.readFileSync(inputPath, 'utf-8');
+		const fontSize = 12;
+		const margin = 50;
+		const lines = txt.split('\n');
+		let currentPage = null;
+		let y = 0;
 
-	const createPage = () => {
-		currentPage = pdfDoc.addPage();
-		y = currentPage.getSize().height - margin; // reset Y for new page
-		return currentPage;
-	};
+		const createPage = () => {
+			currentPage = pdfDoc.addPage();
+			y = currentPage.getSize().height - margin; // reset Y for new page
+			return currentPage;
+		};
 
-	createPage();
+		createPage();
 
-	lines.forEach(line => {
-		while (line.length > 0) {
-			if (y < fontSize + margin) { // verif space for new line
-				createPage();
+		lines.forEach(line => {
+			while (line.length > 0) {
+				if (y < fontSize + margin) { // verif space for new line
+					createPage();
+				}
+				const { width } = currentPage.getSize();
+				const textWidth = width - 2 * margin;
+				const charsPerLine = Math.floor(textWidth / (fontSize * 0.6)); // it's "a peu pres"
+				const segment = line.substring(0, charsPerLine);
+				line = line.substring(charsPerLine);
+
+				currentPage.drawText(segment, {
+					x: margin,
+					y: y,
+					size: fontSize,
+					color: rgb(0, 0, 0),
+				});
+
+				y -= fontSize + 5;
 			}
-			const { width } = currentPage.getSize();
-			const textWidth = width - 2 * margin;
-			const charsPerLine = Math.floor(textWidth / (fontSize * 0.6)); // it's "a peu pres"
-			const segment = line.substring(0, charsPerLine);
-			line = line.substring(charsPerLine);
+			y -= 5;
+		});
 
-			currentPage.drawText(segment, {
-				x: margin,
-				y: y,
-				size: fontSize,
-				color: rgb(0, 0, 0),
-			});
-
-			y -= fontSize + 5;
-		}
-		y -= 5;
-	});
-
-	return pdfDoc;
+		return pdfDoc;
+	} catch (err) {
+		console.error('Error during txt conversion: ', err);
+		err.message = 'Error during txt conversion: ' + err.message;
+		throw err;
+	}	
 }
 
 
@@ -87,7 +99,8 @@ async function convertDocx(inputPath) {
 
 		return pdfDoc;
 	} catch (err) {
-		console.error('Error during docx conversion:', err);
+		console.error('Error during docx conversion: ', err);
+		err.message = 'Error during docx conversion: ' + err.message;
 		throw err;
 	}
 }
@@ -108,7 +121,9 @@ async function convertToPdf(inputPath) { // take one files, check type and conve
 	} else if (ext === '.docx') {
 		pdfDoc = await convertDocx(inputPath);
 	} else {
-		throw new Error('Unsupported file type');
+		const error = new Error('Unsupported file type for ' + inputPath + ' : ' + ext);
+		console.error(error);
+		throw error;
 	}
 
 	return pdfDoc;

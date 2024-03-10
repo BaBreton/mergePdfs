@@ -1,7 +1,8 @@
-import React, {useState, useEffect, useCallback, useRef } from "react";
+import React, {useState, useCallback, useRef } from "react";
 import {Table, TableHeader, TableColumn, TableBody, TableRow, TableCell} from "@nextui-org/table";
 import { Spinner } from "@nextui-org/spinner";
 import { DeleteIcon } from "./DeleteIcon";
+import { CrossIcon } from "./CrossIcon";
 
 
 export default function Merge() {
@@ -10,6 +11,8 @@ export default function Merge() {
 	const [dragOver, setDragOver] = useState(false);
 	const [inputKey, setInputKey] = useState(Date.now());
 	const [processing, setProcessing] = useState(false);
+	const [error, setError] = useState(false);
+	const [errorMessage, setErrorMessage] = useState('');
 	const fileInputRef = useRef(null);
 
 
@@ -53,6 +56,32 @@ export default function Merge() {
     };
 
 
+	const getFileSize = (file) => {
+		let size = file.size / 1024;
+		if (size > 1024) {
+			size = size / 1024;
+			return size.toFixed(2) + ' MB';
+		} else {
+			return size.toFixed(2) + ' KB';
+		}
+	};
+
+
+	const getFullSize = () => {
+		let size = 0;
+		Array.from(files).forEach((file) => {
+			size += file.size;
+		});
+		size = size / 1024;
+		if (size > 1024) {
+			size = size / 1024;
+			return size.toFixed(2) + ' MB';
+		} else {
+			return size.toFixed(2) + ' KB';
+		}
+	};
+
+
 	const renderFilesList = () => {
         return (
 			<Table aria-label="Files list" className="mt-4">
@@ -65,7 +94,7 @@ export default function Merge() {
 					{Array.from(files).map((file, index) => (
 						<TableRow key={index}>
 							<TableCell>{file.name}</TableCell>
-							<TableCell>{Math.round(file.size / 1024)} KB</TableCell>
+							<TableCell>{getFileSize(file)}</TableCell>
 							<TableCell style={{ width: '50px', textAlign: 'center' }}>
 								<span className="text-lg text-danger cursor-pointer active:opacity-50">
 									<DeleteIcon onClick={() => handleDeleteFile(index)} />
@@ -73,6 +102,13 @@ export default function Merge() {
 							</TableCell>
 						</TableRow>
 					))}
+					<TableRow>
+						<TableCell className="text-center font-semibold">
+							{files.length} file(s) selected
+						</TableCell>
+						<TableCell className="text-left font-semibold">{getFullSize()}</TableCell>
+						<TableCell></TableCell>
+					</TableRow>
 				</TableBody>
 			</Table>
         );
@@ -93,18 +129,29 @@ export default function Merge() {
 				})
 			);
 			const filesObject = { files: base64Files };
-			console.log("Envoi à l'API:", filesObject);
+			const requestBody = JSON.stringify(filesObject);
+			const requestSizeBytes = new Blob([requestBody]).size;
+			const requestSizeMb = requestSizeBytes / 1024 / 1024;
+			if (requestSizeMb > 10) {
+				throw new Error('Total size of files is too large, total size must be less than 10MB');
+			}
 
-			const response = await fetch('AMAZON_LAMBDA_URL', {
+			const response = await fetch('AWS_LAMBDA_URL', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(filesObject)
+				body: requestBody
 			});
 			console.log("Réponse de l'API:", response);
 			if (!response.ok) {
-				throw new Error('Error while merging files');
+				const error = await response.text();
+				const errorObject = JSON.parse(error);
+				let errorMessage = errorObject.error;
+				if (errorMessage.includes('/tmp/')) {
+					errorMessage = errorMessage.replace('/tmp/', '');
+				}
+				throw new Error(errorMessage);
 			}
 
 			const mergedBase64 = await response.text();
@@ -120,6 +167,8 @@ export default function Merge() {
 			setProcessing(false);
 
 		} catch (error) {
+			setError(true);
+			setErrorMessage(error.message);
 			console.error(error);
 		}
 	}
@@ -159,12 +208,28 @@ export default function Merge() {
 	}
 
 
+	const closeErrorDialog = () => {
+		setProcessing(false);
+		setError(false);
+	}
+
+
 	return (
 		<>
 		{processing && (
 			<div className="flex flex-col overlay">
-				<Spinner label="Processing..." color="primary" />
-				<p className="text-black text-center mt-4 italic font-extralight">Please wait while we merge your files, the new file will be downloaded automatically.</p>
+				{error === true ? (
+					<>
+						<CrossIcon className="" />
+						<p className="text-black text-center mt-4 italic font-extralight">There is an error while merging your files : {errorMessage} .</p>
+						<button className="flex items-center mt-4 h-10 bg-transparent border-blue-500 border-2 text-blue-500 hover:bg-blue-500 hover:text-white font-bold py-2 px-4 rounded-2xl" onClick={closeErrorDialog}>Try again</button>
+					</>
+				) : (
+					<>
+						<Spinner label="Processing..." color="primary" />
+						<p className="text-black text-center mt-4 italic font-extralight">Please wait while we merge your files, the new file will be downloaded automatically.</p>
+					</>
+				)}
 			</div>
 		)}
 			<div className="h-screen w-full bg-soft-blue">
