@@ -1,5 +1,5 @@
 import './App.css';
-import Merge from './Merge';
+import Merge from './components/Merge';
 import { NextUIProvider } from '@nextui-org/system';
 
 function App() {
