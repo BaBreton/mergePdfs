@@ -60,6 +60,14 @@ export const useUtils = () => {
 
 	async function getRequestBody(files) { // Convert the files to base64 and return the request body. The lambda take a the file name with extension to identify the files and how to merge them.
 		try {
+			const fileNames = new Set();
+			Array.from(files).forEach((file) => {
+				if (fileNames.has(file.name)) {
+					throw new Error('Files with the same name are not allowed');
+				}
+				fileNames.add(file.name);
+				}
+			);
 			const base64Files = await Promise.all(
 				Array.from(files).map(async (file) => {
 					const base64 = await convertToBase64(file);
